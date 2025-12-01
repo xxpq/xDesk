@@ -6,7 +6,7 @@ namespace codec {
 namespace lz4 {
 
 uint64_t
-compress(byte *, byte *, uint64_t);
+compress(byte *, byte *, uint64_t, const int &);
 
 uint64_t
 decompress(byte *, byte *, uint64_t, int);

@@ -82,6 +82,8 @@ start(const args &args) {
 
 		usr.delta = std::min(byte{0xFE}, usr.delta);
 		usr.fps   = std::max(byte{0x01}, usr.fps);
+		usr.lz4   = std::max(byte{0x01}, usr.lz4);
+		usr.lz4   = std::min(byte{0x12}, usr.lz4);
 		net::screen res;
 		std::tie(res.width, res.height) = disp->res();
 		NEXT_IF(!net::send(res));
@@ -93,7 +95,7 @@ start(const args &args) {
 		std::thread keys(events);
 		DIE(!keys.joinable());
 
-		codec::init(res.width, res.height, usr.delta);
+		codec::init(res.width, res.height, usr.delta, usr.lz4);
 		codec::skip(skip.x, skip.y);
 		codec::allocate();
 		byte *buff = new byte[codec::max() + 8];
@@ -115,7 +117,6 @@ start(const args &args) {
 			prev = now;
 			disp->refresh(pixs);
 			NEXT_IF(!codec::get(pixs, buff, size));
-
 			status = net::send(buff, size);
 			BREAK_IF(status != net::status::OK);
 #ifdef TEST

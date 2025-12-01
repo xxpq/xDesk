@@ -1,7 +1,7 @@
 
 #include <cmath>
 #include <string.h>
-#include <lz4.h>
+#include <lz4hc.h>
 #include <macro.hpp>
 #include <codec/lz4.hpp>
 
@@ -9,7 +9,7 @@ namespace codec {
 namespace lz4 {
 
 uint64_t
-compress(byte *buff, byte *src, uint64_t size) {
+compress(byte *buff, byte *src, uint64_t size, const int &level) {
 	size_t iters = 1;
 	if (size > LZ4_MAX_INPUT_SIZE) {
 		iters = std::ceil(size / double{LZ4_MAX_INPUT_SIZE});
@@ -29,7 +29,7 @@ compress(byte *buff, byte *src, uint64_t size) {
 		partlen = size > LZ4_MAX_INPUT_SIZE ? LZ4_MAX_INPUT_SIZE : size;
 		size -= partlen;
 
-		len = ::LZ4_compress_default(from, to + 4, partlen, len);
+		len = ::LZ4_compress_HC(from, to + 4, partlen, len, level);
 		DIE(len <= 0);
 		tmp = len;
 		tmp = htonl(tmp);

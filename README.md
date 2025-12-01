@@ -43,7 +43,7 @@ cd DeskX
 make
 
 # MacOS
-brew install sdl2
+brew install sdl2 lz4
 git clone https://github.com/DeskX11/DeskX/
 cd DeskX
 make
@@ -88,6 +88,7 @@ Client's options:
 	--port			Port of the server
 	--color-distance	Compression range (1-255) (default: 2)
 	--fps			Frame limit (default: 50)
+	--lz4level		Compression level  (1-12) (default: 1)
 
 Examples:
 	./deskx client --ip=192.168.0.1 --port=1742 --color-distance=2
@@ -104,7 +105,7 @@ Examples:
 ```
 
 ## How to get best performance?
-Fast data transfer depends on two factors: the size of the transmitted packet and the transfer rate. To reduce the size of the batch, you can try changing the `--color-distance=` parameter up. You can also make a single-color desktop wallpaper, remove shadows on windows, and so on.
+Fast data transfer depends on two factors: the size of the transmitted packet and the transfer rate. To reduce the size of the batch, you can try changing the `--color-distance=` parameter up. Also, using the `--lz4level=` flag, you can increase compression using the LZ algorithm. You can make a single-color desktop wallpaper, remove shadows on windows, and so on.
 
 ## Requirements for compilation.
 #### Linux
@@ -113,7 +114,7 @@ Fast data transfer depends on two factors: the size of the transmitted packet an
 
 #### MacOS
 * `clang make`
-* `libsdl2`
+* `libsdl2 liblz4`
 
 #### Windows
 * `Cygwin MinGW`

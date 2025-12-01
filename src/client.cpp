@@ -61,18 +61,20 @@ start(const args &args) {
 		return 4;
 	}
 
-	INFO(NOTE"Trying to connect to " + ip);
+	INFO(NOTE"Trying to connect to " + ip); 
 	if (!net::start(ip, port, args.mode())) {
 		INFO(ERR"Can't connect to the server");
 		net::close();
 		return 5;
 	}
 
-	int num = args.num("color-distance");
-	int fps = args.num("fps");
+	const int num = args.num("color-distance");
+	const int lz4 = args.num("lz4level");
+	const int fps = args.num("fps");
 	net::hello msg = {
-		static_cast<byte>(num == -1 ? 2 : std::min(254, num)),
-		static_cast<byte>(fps  < 1 ? 50 : std::min(255, fps))
+		static_cast<byte>(num == -1 ?  2 : std::min(254, num)),
+		static_cast<byte>(fps  <  1 ? 50 : std::min(255, fps)),
+		static_cast<byte>(lz4 == -1 ?  1 : std::min( 12, lz4))
 	};
 	if (!net::send(msg)) {
 		INFO(ERR"Can't send 'hello' message");

@@ -17,6 +17,7 @@ byte *prev = nullptr;
 byte *next = nullptr;
 byte *lz4m = nullptr;
 bool start;
+int lz4l;
 
 byte
 is(const byte s) {
@@ -26,12 +27,13 @@ is(const byte s) {
 }
 
 void
-init(const size_t &x, const size_t &y, const byte num) {
+init(const size_t &x, const size_t &y, const byte num, const byte lz4level) {
 	DIE(x > SCR_X_MAX || y > SCR_Y_MAX);
 	pixnum = x * y;
 	framemax = pixnum * 3;
 	DIE(!framemax);
 
+	lz4l   = static_cast<int>(lz4level);
 	start  = true;
 	delta  = num;
 	width  = x;
@@ -168,7 +170,7 @@ get(display::pixs &pixs, byte *msg, uint64_t &size) {
 	std::swap(prev, next);
 	RET_IF(!size, false);
 
-	size = lz4::compress(msg + 8, lz4m, size);
+	size = lz4::compress(msg + 8, lz4m, size, lz4l);
 	const uint64_t num = htonll(size);
 	::memcpy(msg, &num, 8);
 	size += 8;

@@ -8,7 +8,7 @@
 namespace codec {
 
 void
-init(const size_t &, const size_t &, const byte);
+init(const size_t &, const size_t &, const byte, const byte l = 1);
 
 void
 skip(const byte, const byte);
