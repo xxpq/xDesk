@@ -1,4 +1,4 @@
-VERSION = 2.0.3 beta
+VERSION = 2.0.4 beta
 SDL2  = $(shell sdl2-config --cflags --libs)
 FLAGS = -I./src -Ofast -lpthread $(SDL2) -llz4 -fno-exceptions -std=c++17 -DVERSION="\"$(VERSION)\""
 

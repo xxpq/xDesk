@@ -10,7 +10,7 @@ namespace client {
 namespace {
 
 bool alive, refresh = false;
-byte *windowbuff;
+byte *window;
 
 void
 screen(void) {
@@ -28,12 +28,12 @@ screen(void) {
 
 		status = net::recv(buff, size);
 		if (status != net::status::OK) {
-			INFO(ERR"Invalid screen package");
+			INFO(ERR"Bad scr package");
 			alive = false;
 			break;
 		}
 
-		codec::set(windowbuff, buff, size);
+		codec::set(window, buff, size);
 		refresh = true;
 #ifdef TEST
 	::exit(0);
@@ -118,8 +118,8 @@ start(const args &args) {
 
 	skip.x++;
 	skip.y++;
-	windowbuff = gui::window(srv.width, srv.height);
-	if (!windowbuff) {
+	window = gui::window(srv.width, srv.height);
+	if (!window) {
 		INFO(ERR"Can't create new window");
 		net::close();
 		return 10;

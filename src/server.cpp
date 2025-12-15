@@ -114,7 +114,7 @@ start(const args &args) {
 				std::this_thread::sleep_for(prev);
 			}
 
-			prev = now;
+			prev = std::move(now);
 			disp->refresh(pixs);
 			NEXT_IF(!codec::get(pixs, buff, size));
 			status = net::send(buff, size);

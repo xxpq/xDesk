@@ -116,9 +116,12 @@ get(display::pixs &pixs, byte *msg, uint64_t &size) {
 			size += shift;
 			buff += shift;
 			flag  = false;
+			shift = 0;
 
-			shift = skip  / xmax;
-			skip -= shift * xmax;
+			if (skip > 0x1FFF) {
+				shift = skip  / xmax;
+				skip -= shift * xmax;
+			}
 			if (shift) {
 				xy.set(shift, axis::type::Y);
 				shift = xy.encode(buff);

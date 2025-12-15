@@ -53,7 +53,8 @@ make
 # need to select the components g++, make, SDL2, git.
 #
 # You can install required packages like so:
-# setup-x86_64.exe -q -P gcc-g++,git,make,libSDL2-devel,libSDL2_2.0_0,liblz4-devel,liblz4_1,lz4,mingw64-x86_64-SDL2,mingw64-x86_64-gcc-g++,mingw64-x86_64-lz4
+# setup-x86_64.exe -q -P gcc-g++,git,make,libSDL2-devel,libSDL2_2.0_0,liblz4-devel,liblz4_1,
+# lz4,mingw64-x86_64-SDL2,mingw64-x86_64-gcc-g++,mingw64-x86_64-lz4
 #
 # Next, open the Cygwin terminal and compile the program:
 git clone https://github.com/DeskX11/DeskX/
@@ -105,7 +106,7 @@ Examples:
 ```
 
 ## How to get best performance?
-Fast data transfer depends on two factors: the size of the transmitted packet and the transfer rate. To reduce the size of the batch, you can try changing the `--color-distance=` parameter up. Also, using the `--lz4level=` flag, you can increase compression using the LZ algorithm. You can make a single-color desktop wallpaper, remove shadows on windows, and so on.
+Fast data transfer depends on two factors: the size of the transmitted packet and the transfer rate. To reduce the size of the batch, you can try changing the `--color-distance=` parameter up. Also, using the `--lz4level=` flag, you can increase compression using the LZ4 algorithm. You can make a single-color desktop wallpaper, remove shadows on windows, and so on.
 
 ## Requirements for compilation.
 #### Linux
