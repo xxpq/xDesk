@@ -51,7 +51,7 @@ public:
 	eq(const rgb &, const byte) const;
 
 	size_t
-	encode(const bool &, byte *) const;
+	encode(byte *) const;
 
 	static size_t
 	decode(const size_t &, const size_t &, const palette::cfg &, byte **, byte **);

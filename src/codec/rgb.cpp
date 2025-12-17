@@ -172,7 +172,7 @@ rgb::eq(const rgb &arg, const byte delta) const {
 }
 
 size_t
-rgb::encode(const bool &flag, byte *buff) const {
+rgb::encode(byte *buff) const {
 	const uint32_t num = size_ - 1;
 	const uint16_t color = rgb16();
 	
@@ -182,7 +182,6 @@ rgb::encode(const bool &flag, byte *buff) const {
 	}
 	RET_IF(num > tpl->encmid.tpl, enc::big(color, num, buff, *tpl));
 	RET_IF(num > 		    0x1F, enc::mid(color, num, buff, *tpl));
-
 	auto it = tpl->c2id.find(color);
 	return it == tpl->c2id.end() ? enc::mid(color, num, buff, *tpl)
 								 : enc::small(it->second, num, buff);

@@ -107,7 +107,14 @@ Examples:
 ```
 
 ## How to get best performance?
-Fast data transfer depends on two factors: the size of the transmitted packet and the transfer rate. To reduce the size of the batch, you can try changing the `--color-distance=` parameter up. Also, using the `--lz4level=` flag, you can increase compression using the LZ4 algorithm. You can make a single-color desktop wallpaper, remove shadows on windows, and so on.
+Optimal performance depends on many factors. Connection type plays a key role. If you have a high ping from the client to the server, no matter the compression level, it will be impossible to achieve a sufficient performance. Of course, packet size also plays a significant role: the smaller the packet size, the faster a new frame will appear on the screen. Let's look at the program's available options for reducing packet size. Using these parameters, you can select the best combination in each specific case.
+
+| Option    | Possible values | Note |
+| --------- | --------------- | ---- |
+| color-distance | from 1 to 255 | This value specifies the acceptable color deviations. This allows colors that differ by a given value to be perceived as the same color. Increasing this value can significantly reduce the packet size. Side effect: image quality is lost. |
+| fps | from 1 to Inf | Frames per second. Affects image smoothness. High values can overload the CPU and increase network load. |
+| lz4level | from 1 to 12 | Additional compression via LZ4. May reduce packet size, but not significantly. Higher values may impact CPU load. |
+| rgb | 12 or 14 | Selecting image bit depth. This can significantly reduce packet size, but it impacts image quality. |
 
 ## Requirements for compilation.
 #### Linux

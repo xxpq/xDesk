@@ -80,9 +80,7 @@ get(display::pixs &pixs, byte *msg, uint64_t &size) {
 	RET_IF(!pixs.ptr, false);
 
 	size_t shift, skip = 0, x = 0;
-	bool flag = false;
-	rgb color0(pcfg);
-	rgb color1(pcfg);
+	rgb color0(pcfg), color1(pcfg);
 	axis xy;
 	size = 0;
 
@@ -117,10 +115,9 @@ get(display::pixs &pixs, byte *msg, uint64_t &size) {
 			continue;
 		}
 		if (skip) {
-			shift = color0.encode(skipy ? false : flag, buff);
+			shift = color0.encode(buff);
 			size += shift;
 			buff += shift;
-			flag  = false;
 			shift = 0;
 
 			if (skip > 0x1FFF) {
@@ -147,7 +144,7 @@ get(display::pixs &pixs, byte *msg, uint64_t &size) {
 
 		color1.set(pixs.ptr);
 		if (color0.full()) {
-			shift = color0.encode(false, buff);
+			shift = color0.encode(buff);
 			size += shift;
 			buff += shift;
 			color0 = color1;
@@ -159,18 +156,14 @@ get(display::pixs &pixs, byte *msg, uint64_t &size) {
 			continue;
 		}
 		else {
-			shift = color0.encode(skipy ? false : flag, buff);
+			shift = color0.encode(buff);
 			size += shift;
 			buff += shift;
 			color0 = color1;
-			flag  = false;
-			NEXT_IF(i <= width);
-			color1.set(pixs.ptr - width * pixs.shift);
-			flag = color0 == color1;
 		}
 	}
 	if (color0.size() > 1) {
-		shift = color0.encode(skipy ? false : flag, buff);
+		shift = color0.encode(buff);
 		size += shift;
 	}
 
