@@ -116,6 +116,12 @@ Optimal performance depends on many factors. Connection type plays a key role. I
 | lz4level | from 1 to 12 | Additional compression via LZ4. May reduce packet size, but not significantly. Higher values may impact CPU load. |
 | rgb | 12 or 14 | Selecting image bit depth. This can significantly reduce packet size, but it impacts image quality. |
 
+## Known bugs.
+* Server-side resolution issues in Windows.
+* Scrolling doesn't work.
+* Some artifacts on white background.
+* Network congestion.
+
 ## Requirements for compilation.
 #### Linux
 * `g++ make`
