@@ -1,34 +1,24 @@
 
 #include <cmath>
 #include <codec/rgb.hpp>
-#include <codec/palette.hpp>
 
 namespace codec {
 namespace {
 
-namespace lims {
-
-constexpr size_t big	= 32767;
-constexpr size_t middle	= 127;
-constexpr size_t small	= 31;
-constexpr size_t top	= 31;
-
-}
-
 namespace enc {
 
 uint16_t
-big(const uint16_t &color, const uint16_t &size, byte *ptr) {
+big(const uint16_t &color, const uint16_t &size, byte *ptr, const palette::cfg &tpl) {
 	uint32_t &val = *reinterpret_cast<uint32_t *>(ptr);
-	val = 0xE0000000 | ((size & 0x7FFF) << 14) | color;
+	val = 0xE0000000 | ((size & tpl.encbig.tpl) << tpl.encbig.shift) | color;
 	val = htonl(val);
 	return 4;
 }
 
 uint16_t
-middle(const uint16_t &color, const uint16_t &size, byte *ptr) {
+mid(const uint16_t &color, const uint16_t &size, byte *ptr, const palette::cfg &tpl) {
 	uint32_t &val = *reinterpret_cast<uint32_t *>(ptr);
-	val = 0xC0000000 | ((size & 0x7F) << 22) | (color << 8);
+	val = 0xC0000000 | ((size & tpl.encmid.tpl) << tpl.encmid.shift) | (color << 8);
 	val = htonl(val);
 	return 3;
 }
@@ -42,8 +32,14 @@ small(const byte color, const uint16_t &size, byte *ptr) {
 }
 
 uint16_t
-top(const uint16_t &size, byte *ptr) {
-	*ptr = 0x80 | (size & 0x1F);
+white(const uint16_t &size, byte *ptr) {
+	*ptr = 0x90 | (size & 0x0F);
+	return 1;
+}
+
+uint16_t
+black(const uint16_t &size, byte *ptr) {
+	*ptr = 0x80 | (size & 0x0F);
 	return 1;
 }
 
@@ -52,45 +48,44 @@ top(const uint16_t &size, byte *ptr) {
 namespace dec {
 
 uint16_t
-big(const byte *ptr, uint32_t &color, uint16_t &size) {
+big(const byte *ptr, const palette::cfg &tpl, uint32_t &color, uint16_t &size) {
 	const uint32_t val = ntohl(*reinterpret_cast<const uint32_t *>(ptr));
-	size = (val & 0x1FFFC000) >> 14;
+	size = (val & tpl.decbig.tpl) >> tpl.decbig.shift;
 	byte &r = *reinterpret_cast<byte *>(&color),
 		 &g = *(&r + 1),
 		 &b = *(&r + 2);
-	r = ((val & 0x3C00) >> 10) * 17;
-	g = ((val & 0x3E0)  >>  5) *  8;
-	b =  (val & 0x1F)		   *  8;
+	r = ((val & tpl.decbig.r.tpl) >> tpl.decbig.r.shift) * tpl.denoms.r;
+	g = ((val & tpl.decbig.g.tpl) >> tpl.decbig.g.shift) * tpl.denoms.g;
+	b = ((val & tpl.decbig.b.tpl) >> tpl.decbig.b.shift) * tpl.denoms.b;
 	return 4;
 }
 
 uint16_t
-middle(const byte *ptr, uint32_t &color, uint16_t &size) {
+mid(const byte *ptr, const palette::cfg &tpl, uint32_t &color, uint16_t &size) {
 	const uint32_t val = ntohl(*reinterpret_cast<const uint32_t *>(ptr));
-	size = (val & 0x1FC00000) >> 22;
+	size = (val & tpl.decmid.tpl) >> tpl.decmid.shift;
 	byte &r = *reinterpret_cast<byte *>(&color),
 		 &g = *(&r + 1),
 		 &b = *(&r + 2);
-	r = ((val & 0x3C0000) >> 18) * 17;
-	g = ((val & 0x3E000)  >> 13) *  8;
-	b = ((val & 0x1F00)   >>  8) *  8;
+	r = ((val & tpl.decmid.r.tpl) >> tpl.decmid.r.shift) * tpl.denoms.r;
+	g = ((val & tpl.decmid.g.tpl) >> tpl.decmid.g.shift) * tpl.denoms.g;
+	b = ((val & tpl.decmid.b.tpl) >> tpl.decmid.b.shift) * tpl.denoms.b;
 	return 3;
 }
 
 uint16_t
-small(const byte *ptr, uint32_t &color, uint16_t &size) {
+small(const byte *ptr, const palette::cfg &tpl, uint32_t &color, uint16_t &size) {
 	const uint16_t val = ntohs(*reinterpret_cast<const uint16_t *>(ptr));
-	auto it = p8to24.find(val & 0xFF);
-	color = it == p8to24.end() ? 0 : it->second;
+	auto it = tpl.id2c.find(val & 0xFF);
+	color = it == tpl.id2c.end() ? 0 : it->second;
 	size  = (val & 0x1F00) >> 8;
 	return 2;
 }
 
 uint16_t
-top(const byte *ptr, uint32_t &color, uint16_t &size, const byte *scr) {
-	const uint32_t &from = *reinterpret_cast<const uint32_t *>(scr);
-	size  = *ptr & 0x1F;
-	color = from;
+single(const byte *ptr, uint32_t &color, uint16_t &size) {
+	color = (*ptr & 0x10) > 0 ? 0x00EBEBEB : 0x00101010;
+	size  =  *ptr & 0x0F;
 	return 1;
 }
 
@@ -98,9 +93,13 @@ top(const byte *ptr, uint32_t &color, uint16_t &size, const byte *scr) {
 
 }
 
+rgb::rgb(const palette::cfg *arg) {
+	tpl = arg;
+	DIE(!arg);
+}
+
 void
 rgb::set(const byte *ptr) {
-	// Converting to LimitedRGB colors.
 	r = static_cast<byte>((ptr[0] / 255.) * 220 + 16);
 	g = static_cast<byte>((ptr[1] / 255.) * 220 + 16);
 	b = static_cast<byte>((ptr[2] / 255.) * 220 + 16);
@@ -124,6 +123,7 @@ rgb::operator=(const rgb &arg) {
 	r = arg.r;
 	g = arg.g;
 	b = arg.b;
+	tpl = arg.tpl;
 	size_ = arg.size_;
 }
 
@@ -140,63 +140,69 @@ rgb::operator!=(const rgb &arg) const {
 
 bool
 rgb::full(void) const {
-	return size_ >= lims::big;
+	return size_ >= tpl->encbig.tpl;
 }
 
-const uint16_t &
+const uint32_t &
 rgb::size(void) const {
 	return size_;
 }
 
 uint32_t
-rgb::rgb24(void) const {
+rgb::rgb32(void) const {
 	uint32_t ret = 0;
 	ret = (r << 16) | (g << 8) | b;
 	return ret;
 }
 
 uint16_t
-rgb::rgb14(void) const {
+rgb::rgb16(void) const {
 	uint16_t ret = 0;
-	byte r4 = r / 17;
-	byte g5 = g /  8;
-	byte b5 = b /  8;
-	ret = (r4 << 10) | (g5 << 5) | b5;
+	byte rp = r / tpl->denoms.r;
+	byte gp = g / tpl->denoms.g;
+	byte bp = b / tpl->denoms.b;
+	ret = (rp << tpl->shifts.r) | (gp << tpl->shifts.g) | bp;
 	return ret;
 }
 
 bool
 rgb::eq(const rgb &arg, const byte delta) const {
 	return std::abs(arg.r - r) + std::abs(arg.g - g) +
-		   std::abs(arg.b - b) <= delta || rgb14() == arg.rgb14();
+		   std::abs(arg.b - b) <= delta || rgb16() == arg.rgb16();
 }
 
 size_t
 rgb::encode(const bool &flag, byte *buff) const {
 	const uint32_t num = size_ - 1;
-	RET_IF(num > lims::middle,   enc::big(rgb14(), num, buff));
-	RET_IF(flag && num <= lims::top,      enc::top(num, buff));
-	RET_IF(num > lims::small, enc::middle(rgb14(), num, buff));
+	const uint16_t color = rgb16();
+	
+	if (num <= 15) {
+		RET_IF(color == tpl->colors.white, enc::white(num, buff));
+		RET_IF(color == tpl->colors.black, enc::black(num, buff));
+	}
+	RET_IF(num > tpl->encmid.tpl, enc::big(color, num, buff, *tpl));
+	RET_IF(num > 		    0x1F, enc::mid(color, num, buff, *tpl));
 
-	auto it = p24to8.find(rgb24());
-	return it != p24to8.end() ? enc::small(it->second, num, buff)
-							  : enc::middle(rgb14(), num, buff);
+	auto it = tpl->c2id.find(color);
+	return it == tpl->c2id.end() ? enc::mid(color, num, buff, *tpl)
+								 : enc::small(it->second, num, buff);
 }
 
 size_t
-rgb::decode(const size_t &width, const size_t &shift, byte **ptr, byte **scr) {
+rgb::decode(const size_t &width, const size_t &shift,
+			const palette::cfg &tpl, byte **ptr, byte **scr) {
 	uint16_t repeat, num;
 	uint32_t color;
 
 	const byte b = *(*ptr);
 	switch (b & 0xE0) {
-	case 0xE0: num = dec::big(*ptr, color, repeat);
+	case 0xE0: num = dec::big(*ptr, tpl, color, repeat);
 			   break;
-	case 0xC0: num = dec::middle(*ptr, color, repeat);
+	case 0xC0: num = dec::mid(*ptr, tpl, color, repeat);
 			   break;
-	case 0xA0: num = dec::small(*ptr, color, repeat);
+	case 0xA0: num = dec::small(*ptr, tpl, color, repeat);
 			   break;
-	case 0x80: num = dec::top(*ptr, color, repeat, *scr - width * shift);
+	case 0x80: num = dec::single(*ptr, color, repeat);
 			   break;
 	default:   INFO(WARN"Incorrect RGB block, shift 0");
 			   return 0;

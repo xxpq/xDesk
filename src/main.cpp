@@ -10,9 +10,10 @@ usage(const int num) {
 							  "on (default: All)\n\t--port\t\t\tConnection port\n";
 	const std::string copts = "Client's options:\n\t--ip\t\t\tIP address of the server\n"
 							  "\t--port\t\t\tPort of the server\n\t--color-distance\t"
-							  "Compression range (1-255) (default: 2)\n\t--fps\t\t\t"
-							  "Frame limit (default: 50)\n\t--lz4level\t\tCompression"
-							  " level  (1-12) (default: 1)\n";
+							  "Compression range (1-255) (default:  2)\n\t--fps\t\t\t"
+							  "Frame limit               (default: 50)\n\t--lz4level"
+							  "\t\tCompression level  (1-12) (default:  1)\n\t--rgb\t"
+							  "\t\tBit depth, 12 or 14       (default: 12)\n";
 	switch (num) {
 	case 1:	 return "Usage: ./deskx client [options]\n" + copts;
 	case 2:	 return "Usage: ./deskx server [options]\n" + sopts;

@@ -32,7 +32,6 @@ screen(void) {
 			alive = false;
 			break;
 		}
-
 		codec::set(window, buff, size);
 		refresh = true;
 #ifdef TEST
@@ -71,10 +70,12 @@ start(const args &args) {
 	const int num = args.num("color-distance");
 	const int lz4 = args.num("lz4level");
 	const int fps = args.num("fps");
+	const int rgb = args.num("rgb");
 	net::hello msg = {
 		static_cast<byte>(num == -1 ?  2 : std::min(254, num)),
 		static_cast<byte>(fps  <  1 ? 50 : std::min(255, fps)),
-		static_cast<byte>(lz4 == -1 ?  1 : std::min( 12, lz4))
+		static_cast<byte>(lz4 == -1 ?  3 : std::min( 12, lz4)),
+		static_cast<byte>(rgb == -1 ? 12 : rgb == 14 ? 14 : 12),
 	};
 	if (!net::send(msg)) {
 		INFO(ERR"Can't send 'hello' message");
@@ -125,7 +126,7 @@ start(const args &args) {
 		return 10;
 	}
 
-	codec::init(srv.width, srv.height, msg.delta);
+	codec::init(srv.width, srv.height, msg.delta, msg.rgb);
 	alive = true;
 	std::thread thr(screen);
 	if (!thr.joinable()) {

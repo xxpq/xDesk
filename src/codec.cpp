@@ -12,6 +12,7 @@ namespace codec {
 namespace {
 
 size_t width, height, pixnum, xmax, framemax;
+const palette::cfg *pcfg = nullptr;
 byte delta, skipx, skipy;
 byte *prev = nullptr;
 byte *next = nullptr;
@@ -27,7 +28,8 @@ is(const byte s) {
 }
 
 void
-init(const size_t &x, const size_t &y, const byte num, const byte lz4level) {
+init(const size_t &x, const size_t &y, const byte num,
+	 const byte bits, const byte lz4level) {
 	DIE(x > SCR_X_MAX || y > SCR_Y_MAX);
 	pixnum = x * y;
 	framemax = pixnum * 3;
@@ -40,6 +42,7 @@ init(const size_t &x, const size_t &y, const byte num, const byte lz4level) {
 	height = y;
 	xmax   = x;
 	lz4m   = new byte[framemax];
+	pcfg   = bits == 14 ? &palette::rgb14 : &palette::rgb12;
 	DIE(!lz4m);
 }
 
@@ -64,6 +67,7 @@ free(void) {
 	delete[] next;
 	prev = nullptr;
 	next = nullptr;
+	pcfg = nullptr;
 }
 
 size_t
@@ -77,11 +81,12 @@ get(display::pixs &pixs, byte *msg, uint64_t &size) {
 
 	size_t shift, skip = 0, x = 0;
 	bool flag = false;
-	rgb color, tmp;
+	rgb color0(pcfg);
+	rgb color1(pcfg);
 	axis xy;
 	size = 0;
 
-	color.set(pixs.ptr);
+	color0.set(pixs.ptr);
 	byte *pbuff = prev;
 	byte *nbuff = next;
 	byte *buff  = lz4m;
@@ -112,7 +117,7 @@ get(display::pixs &pixs, byte *msg, uint64_t &size) {
 			continue;
 		}
 		if (skip) {
-			shift = color.encode(skipy ? false : flag, buff);
+			shift = color0.encode(skipy ? false : flag, buff);
 			size += shift;
 			buff += shift;
 			flag  = false;
@@ -136,36 +141,36 @@ get(display::pixs &pixs, byte *msg, uint64_t &size) {
 				skip = 0;
 			}
 
-			color.set(pixs.ptr);
+			color0.set(pixs.ptr);
 			continue;
 		}
 
-		tmp.set(pixs.ptr);
-		if (color.full()) {
-			shift = color.encode(false, buff);
+		color1.set(pixs.ptr);
+		if (color0.full()) {
+			shift = color0.encode(false, buff);
 			size += shift;
 			buff += shift;
-			color = tmp;
+			color0 = color1;
 			continue;
 		}
 
-		if (color.eq(tmp, delta)) {
-			++color;
+		if (color0.eq(color1, delta)) {
+			++color0;
 			continue;
 		}
 		else {
-			shift = color.encode(skipy ? false : flag, buff);
+			shift = color0.encode(skipy ? false : flag, buff);
 			size += shift;
 			buff += shift;
-			color = tmp;
+			color0 = color1;
 			flag  = false;
 			NEXT_IF(i <= width);
-			tmp.set(pixs.ptr - width * pixs.shift);
-			flag = color == tmp;
+			color1.set(pixs.ptr - width * pixs.shift);
+			flag = color0 == color1;
 		}
 	}
-	if (color.size() > 1) {
-		shift = color.encode(skipy ? false : flag, buff);
+	if (color0.size() > 1) {
+		shift = color0.encode(skipy ? false : flag, buff);
 		size += shift;
 	}
 
@@ -196,7 +201,7 @@ set(byte *win, byte *msg, uint64_t &size) {
 			return;
 		}
 
-		tmp = rgb::decode(width, 4, &buff, &win);
+		tmp = rgb::decode(width, 4, *pcfg, &buff, &win);
 		num += tmp;
 		if (!tmp) {
 			INFO(WARN"Line is broken, skip frame");

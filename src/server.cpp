@@ -95,7 +95,7 @@ start(const args &args) {
 		std::thread keys(events);
 		DIE(!keys.joinable());
 
-		codec::init(res.width, res.height, usr.delta, usr.lz4);
+		codec::init(res.width, res.height, usr.delta, usr.rgb, usr.lz4);
 		codec::skip(skip.x, skip.y);
 		codec::allocate();
 		byte *buff = new byte[codec::max() + 8];

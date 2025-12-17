@@ -3,15 +3,26 @@
 #define DESKX_CODEC_RGB_HPP
 
 #include <macro.hpp>
+#include <codec/palette.hpp>
 
 namespace codec {
 
 class rgb {
+private:
+	uint16_t
+	rgb16(void) const;
+
+	uint32_t
+	rgb32(void) const;
+
 protected:
+	const palette::cfg *tpl = nullptr;
 	byte r, g, b;
-	uint16_t size_ = 1;
+	uint32_t size_ = 1;
 
 public:
+	rgb(const palette::cfg *);
+
 	void
 	set(const byte *);
 
@@ -33,14 +44,8 @@ public:
 	bool
 	full(void) const;
 
-	const uint16_t &
+	const uint32_t &
 	size(void) const;
-
-	uint16_t
-	rgb14(void) const;
-
-	uint32_t
-	rgb24(void) const;
 
 	bool
 	eq(const rgb &, const byte) const;
@@ -49,7 +54,7 @@ public:
 	encode(const bool &, byte *) const;
 
 	static size_t
-	decode(const size_t &, const size_t &, byte **, byte **);
+	decode(const size_t &, const size_t &, const palette::cfg &, byte **, byte **);
 
 };
 
