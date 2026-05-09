@@ -9,7 +9,7 @@
 class args {
 public:
 enum type {
-	CLIENT, SERVER, UNKNOWN
+	CLIENT, SERVER, INSTALL, UNINSTALL, UNKNOWN
 };
 
 	args(void) { }
@@ -37,6 +37,11 @@ enum type {
 protected:
 	std::map<std::string, std::string> map_;
 	type type_ = UNKNOWN;
+	std::string service_name_;
+
+public:
+	std::string
+	service_name(void) const { return service_name_; }
 };
 
 #endif

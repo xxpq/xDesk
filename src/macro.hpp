@@ -4,8 +4,16 @@
 
 #include <chrono>
 #include <iostream>
+
+#if defined(_WIN32) || defined(_WIN64)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <io.h>
+#define close _close
+#else
 #include <netinet/in.h>
 #include <unistd.h>
+#endif
 
 inline bool logo_ = true;
 typedef unsigned char byte;

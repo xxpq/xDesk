@@ -8,6 +8,12 @@
 #include <codec.hpp>
 #include <server.hpp>
 
+// Frame types for adaptive scaling protocol
+enum frame_type : byte {
+	FRAME_COMPRESSED = 0,  // Original LZ4 compressed frame
+	FRAME_RAW_RGB    = 1   // Raw RGB frame (scaled)
+};
+
 namespace server {
 namespace {
 
@@ -88,22 +94,41 @@ start(const args &args) {
 		std::tie(res.width, res.height) = disp->res();
 		NEXT_IF(!net::send(res));
 
-		net::skipxy skip;
-		NEXT_IF(!net::recv(skip));
-
+		// Receive client viewport for adaptive scaling
+		net::client_view view;
+		NEXT_IF(!net::recv(view));
+		
+		INFO(NOTE"Client viewport: " + std::to_string(view.width) + "x" 
+			 + std::to_string(view.height));
+		
 		alive = true;
 		std::thread keys(events);
 		DIE(!keys.joinable());
 
 		codec::init(res.width, res.height, usr.delta, usr.rgb, usr.lz4);
-		codec::skip(skip.x, skip.y);
 		codec::allocate();
+		codec::update_viewport(view.width, view.height);
+		
+		// Determine actual transmission resolution
+		size_t tx_w, tx_h;
+		codec::get_viewport(tx_w, tx_h);
+		net::screen tx_res;
+		tx_res.width  = tx_w > 0 ? static_cast<uint16_t>(tx_w) : res.width;
+		tx_res.height = tx_h > 0 ? static_cast<uint16_t>(tx_h) : res.height;
+		NEXT_IF(!net::send(tx_res));
+		
+		// Allocate buffer for scaled output if needed
 		byte *buff = new byte[codec::max() + 8];
+		byte *scale_buff = nullptr;
+		if (tx_w > 0 && tx_h > 0) {
+			scale_buff = new byte[tx_res.width * tx_res.height * 4 + 8];
+		}
 		DIE(!buff);
 
 		std::chrono::milliseconds delay(1000 / usr.fps);
 		auto now = NOW_MSEC, prev = now;
 		display::pixs pixs;
+		display::pixs scaled_pixs;
 		net::status status;
 		uint64_t size;
 
@@ -116,8 +141,23 @@ start(const args &args) {
 
 			prev = std::move(now);
 			disp->refresh(pixs);
-			NEXT_IF(!codec::get(pixs, buff, size));
-			status = net::send(buff, size);
+			
+			// Use adaptive scaling if viewport differs from native resolution
+			if (tx_w > 0 && tx_h > 0 && scale_buff) {
+				scaled_pixs = pixs;
+				scaled_pixs.shift = 4;
+				codec::scale(scaled_pixs, scale_buff, size, tx_res.width, tx_res.height);
+				// Send frame type identifier for raw RGB
+				byte ftype = FRAME_RAW_RGB;
+				net::send(&ftype, 1);
+				status = net::send(scale_buff, size);
+			} else {
+				NEXT_IF(!codec::get(pixs, buff, size));
+				// Send frame type identifier for compressed frame
+				byte ftype = FRAME_COMPRESSED;
+				net::send(&ftype, 1);
+				status = net::send(buff, size);
+			}
 			BREAK_IF(status != net::status::OK);
 #ifdef TEST
 	::exit(0);
@@ -130,6 +170,7 @@ start(const args &args) {
 		keys.join();
 		codec::free();
 		delete[] buff;
+		delete[] scale_buff;
 	}
 
 	net::close();

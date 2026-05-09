@@ -18,6 +18,11 @@ struct skipxy {
 	byte x = 0, y = 0;
 };
 
+// Client window viewport size for adaptive scaling
+struct client_view {
+	uint16_t width, height;
+};
+
 enum status {
 	OK, EMPTY, FAIL
 };

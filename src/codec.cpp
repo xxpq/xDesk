@@ -20,6 +20,10 @@ byte *lz4m = nullptr;
 bool start;
 int lz4l;
 
+// Adaptive scaling state
+size_t target_w = 0, target_h = 0;
+bool need_scale = false;
+
 byte
 is(const byte s) {
 	return (s & 0x80) == 0x80 ? LINE : AXIS;
@@ -201,6 +205,86 @@ set(byte *win, byte *msg, uint64_t &size) {
 			return;
 		}
 	}
+}
+
+// Update viewport for adaptive scaling
+void
+update_viewport(const size_t &tw, const size_t &th) {
+	if (tw == target_w && th == target_h) return;
+	target_w = tw;
+	target_h = th;
+	need_scale = (tw > 0 && th > 0 && (tw != width || th != height));
+	INFO(NOTE"Viewport updated to " + std::to_string(tw) + "x" + std::to_string(th)
+		 + (need_scale ? " (scaling enabled)" : " (native)"));
+}
+
+// Get current viewport dimensions
+void
+get_viewport(size_t &tw, size_t &th) {
+	tw = target_w;
+	th = target_h;
+}
+
+// Scale source pixels to target dimensions using bilinear interpolation
+void
+scale(display::pixs &pixs, byte *msg, uint64_t &size,
+	  const size_t &tw, const size_t &th) {
+	RET_IF(!pixs.ptr || tw == 0 || th == 0);
+	
+	const size_t sw = width, sh = height;
+	const float scale_x = static_cast<float>(sw) / tw;
+	const float scale_y = static_cast<float>(sh) / th;
+	
+	// Write scaled image directly to output buffer
+	byte *out = msg + 8;
+	size_t out_pos = 0;
+	
+	for (size_t ty = 0; ty < th; ty++) {
+		// Source y coordinate (center of target row)
+		const size_t sy_base = static_cast<size_t>(ty * scale_y);
+		
+		for (size_t tx = 0; tx < tw; tx++) {
+			// Source x coordinate (center of target pixel)
+			const size_t sx_base = static_cast<size_t>(tx * scale_x);
+			
+			// Bilinear interpolation weights
+			const float fx = tx * scale_x - sx_base;
+			const float fy = ty * scale_y - sy_base;
+			
+			// Four source pixels
+			const size_t sx0 = sx_base;
+			const size_t sy0 = std::min(sy_base, sh - 1);
+			const size_t sx1 = std::min(sx_base + 1, sw - 1);
+			const size_t sy1 = std::min(sy_base + 1, sh - 1);
+			
+			byte *p00 = pixs.ptr + (sy0 * sw + sx0) * pixs.shift;
+			byte *p10 = pixs.ptr + (sy0 * sw + sx1) * pixs.shift;
+			byte *p01 = pixs.ptr + (sy1 * sw + sx0) * pixs.shift;
+			byte *p11 = pixs.ptr + (sy1 * sw + sx1) * pixs.shift;
+			
+			// Bilinear interpolation for each channel (R, G, B)
+			for (int c = 0; c < 3; c++) {
+				float v00 = p00[c];
+				float v10 = p10[c];
+				float v01 = p01[c];
+				float v11 = p11[c];
+				
+				float interpolated = v00 * (1 - fx) * (1 - fy)
+									+ v10 * fx * (1 - fy)
+									+ v01 * (1 - fx) * fy
+									+ v11 * fx * fy;
+				out[out_pos++] = static_cast<byte>(interpolated + 0.5f);
+			}
+			// Alpha channel (keep full opacity)
+			out[out_pos++] = 255;
+		}
+	}
+	
+	// Use raw encoding for scaled frames
+	size = out_pos;
+	const uint64_t num = htonll(size);
+	::memcpy(msg, &num, 8);
+	size += 8;
 }
 
 }

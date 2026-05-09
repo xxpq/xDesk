@@ -11,28 +11,58 @@ namespace {
 
 bool alive, refresh = false;
 byte *window;
+size_t client_w = 0, client_h = 0;  // Client window dimensions
+
+// Frame types for adaptive scaling protocol
+enum frame_type : byte {
+	FRAME_COMPRESSED = 0,  // Original LZ4 compressed frame
+	FRAME_RAW_RGB    = 1   // Raw RGB frame (scaled)
+};
 
 void
 screen(void) {
 	byte *buff = new byte[codec::max()];
+	byte *raw_buff = new byte[client_w * client_h * 4];
 	net::status status;
 	uint64_t size;
 	DIE(!buff);
 
 	while (alive) {
+		// Read frame type (1 byte)
+		byte ftype;
+		status = net::recv(&ftype, 1);
+		BREAK_IF(status == net::status::FAIL);
+		NEXT_DELAY(status == net::status::EMPTY);
+
+		// Read frame size (8 bytes)
 		status = net::recv(reinterpret_cast<byte *>(&size), 8);
 		BREAK_IF(status == net::status::FAIL);
 
 		size = ntohll(size);
 		NEXT_DELAY(status == net::status::EMPTY || size < 2);
 
-		status = net::recv(buff, size);
-		if (status != net::status::OK) {
-			INFO(ERR"Bad scr package");
-			alive = false;
-			break;
+		// Handle different frame types
+		if (ftype == FRAME_RAW_RGB) {
+			// Raw RGB frame (from scaled transmission)
+			status = net::recv(raw_buff, size);
+			if (status != net::status::OK) {
+				INFO(ERR"Bad raw frame");
+				alive = false;
+				break;
+			}
+			// Direct copy to window buffer (no decoding needed)
+			::memcpy(window, raw_buff, std::min(static_cast<size_t>(size), 
+												 client_w * client_h * 4));
+		} else {
+			// Compressed frame (original codec)
+			status = net::recv(buff, size);
+			if (status != net::status::OK) {
+				INFO(ERR"Bad scr package");
+				alive = false;
+				break;
+			}
+			codec::set(window, buff, size);
 		}
-		codec::set(window, buff, size);
 		refresh = true;
 #ifdef TEST
 	::exit(0);
@@ -42,6 +72,7 @@ screen(void) {
 	::exit(1);
 #endif
 	delete[] buff;
+	delete[] raw_buff;
 }
 
 }
@@ -83,6 +114,45 @@ start(const args &args) {
 		return 6;
 	}
 
+	if (!gui::init()) {
+		INFO(ERR"Can't init GUI module");
+		net::close();
+		return 9;
+	}
+
+	// Parse window-size parameter: --window-size=1280x720
+	size_t client_w = 0, client_h = 0;
+	const std::string &winsize = args["window-size"];
+	if (!winsize.empty()) {
+		size_t sep = winsize.find('x');
+		if (sep != std::string::npos) {
+			client_w = std::stoul(winsize.substr(0, sep));
+			client_h = std::stoul(winsize.substr(sep + 1));
+			INFO(NOTE"Using specified window size: " 
+				 + std::to_string(client_w) + "x" + std::to_string(client_h));
+		} else {
+			INFO(WARN"Invalid window-size format, use WIDTHxHEIGHT (e.g., 1280x720)");
+		}
+	}
+
+	// Default to display resolution if not specified
+	if (client_w == 0 || client_h == 0) {
+		client_w = gui::width();
+		client_h = gui::height();
+	}
+
+	// Send client viewport to server for adaptive scaling
+	net::client_view view;
+	view.width  = static_cast<uint16_t>(std::min(client_w, static_cast<size_t>(SCR_X_MAX)));
+	view.height = static_cast<uint16_t>(std::min(client_h, static_cast<size_t>(SCR_Y_MAX)));
+	
+	if (!net::send(view)) {
+		INFO(ERR"Can't send viewport");
+		net::close();
+		return 6;
+	}
+
+	// Server responds with actual transmitted resolution
 	net::screen srv;
 	if (!net::recv(srv)) {
 		INFO(ERR"Can't receive screen config");
@@ -94,31 +164,9 @@ start(const args &args) {
 		net::close();
 		return 8;
 	}
-	if (!gui::init()) {
-		INFO(ERR"Can't init GUI module");
-		net::close();
-		return 9;
-	}
 
-	double x = gui::width(), y = gui::height();
-	net::skipxy skip;
-	if (x < srv.width || y < srv.height) {
-		INFO(WARN"Scaling enabled, distortion may occur");
-		skip.x = x == srv.width  ? 1 : std::ceil(srv.width  / x);
-		skip.y = y == srv.height ? 1 : std::ceil(srv.height / y);
-		srv.width  = srv.width  / skip.x;
-		srv.height = srv.height / skip.y;
-		skip.x--;
-		skip.y--;
-	}
-	if (!net::send(skip)) {
-		INFO(ERR"Can't send 'skip' message");
-		net::close();
-		return 6;
-	}
-
-	skip.x++;
-	skip.y++;
+	INFO(NOTE"Creating window with resolution " + std::to_string(srv.width) + "x" 
+		 + std::to_string(srv.height));
 	window = gui::window(srv.width, srv.height);
 	if (!window) {
 		INFO(ERR"Can't create new window");
@@ -127,6 +175,11 @@ start(const args &args) {
 	}
 
 	codec::init(srv.width, srv.height, msg.delta, msg.rgb);
+	
+	// Store window dimensions for frame decoding
+	client_w = srv.width;
+	client_h = srv.height;
+	
 	alive = true;
 	std::thread thr(screen);
 	if (!thr.joinable()) {
@@ -155,8 +208,6 @@ start(const args &args) {
 		BREAK_IF(flags.second);
 		NEXT_IF(!flags.first);
 
-		elist.mouse.first  *= skip.x;
-		elist.mouse.second *= skip.y;
 		elist.pack(buff);
 		status = net::send(buff, display::emsg);
 		BREAK_IF(status != net::status::OK);

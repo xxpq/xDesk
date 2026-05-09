@@ -7,7 +7,23 @@
 args::args(const int argc, char **argv) {
 	RET_IF(argc < 2);
 	const std::string arg(argv[1]);
-	type_ = arg == "server" ? SERVER : (arg == "client" ? CLIENT : UNKNOWN);
+
+	if (arg == "server") {
+		type_ = SERVER;
+	} else if (arg == "client") {
+		type_ = CLIENT;
+	} else if (arg == "-install") {
+		type_ = INSTALL;
+		RET_IF(argc < 3);
+		service_name_ = argv[2];
+		return;
+	} else if (arg == "-uninstall") {
+		type_ = UNINSTALL;
+		return;
+	} else {
+		type_ = UNKNOWN;
+		return;
+	}
 
 	std::pair<std::string, std::string> tmp;
 	char *key, *val;
