@@ -34,7 +34,7 @@ copy_to_bin(const char *src, const char *service_name) {
 	struct stat st;
 
 	if (::stat(src, &st) != 0) {
-		INFO(ERR"Source executable not found: " << src);
+		INFO(std::string(ERR) + "Source executable not found: " + src);
 		return false;
 	}
 
@@ -49,7 +49,7 @@ copy_to_bin(const char *src, const char *service_name) {
 
 	FILE *out = ::fopen(dest, "wb");
 	if (!out) {
-		INFO(ERR"Cannot create " << dest << " (need root permission)");
+		INFO(std::string(ERR) + "Cannot create " + dest + " (need root permission)");
 		::fclose(in);
 		return false;
 	}
@@ -58,7 +58,7 @@ copy_to_bin(const char *src, const char *service_name) {
 	size_t n;
 	while ((n = ::fread(buf, 1, sizeof(buf), in)) > 0) {
 		if (::fwrite(buf, 1, n, out) != n) {
-			INFO(ERR"Failed to write to " << dest);
+			INFO(std::string(ERR) + "Failed to write to " + dest);
 			::fclose(in);
 			::fclose(out);
 			return false;
@@ -91,7 +91,7 @@ create_systemd_service(const char *service_name, const char *port) {
 	::fputs(content, f);
 	::fclose(f);
 
-	INFO(NOTE"Created service: " << path);
+	INFO(std::string(NOTE) + "Created service: " + path);
 	return true;
 }
 
@@ -115,7 +115,7 @@ start_service(const char *service_name) {
 		return false;
 	}
 
-	INFO(NOTE"Service started: " << service_name);
+	INFO(std::string(NOTE) + "Service started: " + service_name);
 	return true;
 }
 
@@ -163,7 +163,6 @@ uninstall(const char *service_name) {
 }
 
 }
-}
 
 #elif OS == OSX
 
@@ -207,7 +206,7 @@ copy_to_bin(const char *src, const char *service_name) {
 	(void)service_name;
 
 	if (::stat(src, &st) != 0) {
-		INFO(ERR"Source executable not found: " << src);
+		INFO(std::string(ERR) + "Source executable not found: " + src);
 		return false;
 	}
 
@@ -221,7 +220,7 @@ copy_to_bin(const char *src, const char *service_name) {
 
 	FILE *out = ::fopen(dest, "wb");
 	if (!out) {
-		INFO(ERR"Cannot create " << dest << " (need sudo)");
+		INFO(std::string(ERR) + "Cannot create " + dest + " (need sudo)");
 		::fclose(in);
 		return false;
 	}
@@ -230,7 +229,7 @@ copy_to_bin(const char *src, const char *service_name) {
 	size_t n;
 	while ((n = ::fread(buf, 1, sizeof(buf), in)) > 0) {
 		if (::fwrite(buf, 1, n, out) != n) {
-			INFO(ERR"Failed to write to " << dest);
+			INFO(std::string(ERR) + "Failed to write to " + dest);
 			::fclose(in);
 			::fclose(out);
 			return false;
@@ -265,7 +264,7 @@ create_launchd_service(const char *service_name, const char *bin_path, const cha
 	::fclose(f);
 
 	::chmod(path, 0644);
-	INFO(NOTE"Created plist: " << path);
+	INFO(std::string(NOTE) + "Created plist: " + path);
 
 	return true;
 }
@@ -282,7 +281,7 @@ start_service(const char *service_name) {
 		INFO(WARN"Service load returned non-zero (may already be running)");
 	}
 
-	INFO(NOTE"Service started: " << service_name);
+	INFO(std::string(NOTE) + "Service started: " + service_name);
 	return true;
 }
 
@@ -322,7 +321,7 @@ uninstall(const char *service_name) {
 	char path[PATH_MAX];
 	::snprintf(path, sizeof(path), "/Library/LaunchDaemons/%s.plist", service_name);
 	::unlink(path);
-	INFO(NOTE"Plist removed: " << path);
+	INFO(std::string(NOTE) + "Plist removed: " + path);
 
 	::unlink("/usr/local/bin/rcs");
 	INFO(NOTE"Removed /usr/local/bin/rcs");
@@ -354,7 +353,7 @@ copy_to_system32(const char *src) {
 		return false;
 	}
 
-	INFO(NOTE"Copied to " << dest);
+	INFO(std::string(NOTE) + "Copied to " + dest);
 	return true;
 }
 

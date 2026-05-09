@@ -2,7 +2,7 @@
 #include <args.hpp>
 #include <client.hpp>
 #include <server.hpp>
-#include <service.cpp>
+#include <service.hpp>
 
 std::string
 usage(const int num) {
