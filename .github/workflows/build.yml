@@ -78,15 +78,34 @@ jobs:
       - name: Prepare artifacts
         shell: pwsh
         run: |
+          # 创建 artifacts 目录
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
-          if (Test-Path "deskx") {
-            Compress-Archive -Path "deskx" -DestinationPath "artifacts/deskx_win.zip" -Force
+          
+          # 复制主程序文件
+          if (Test-Path "deskx.exe") {
+            Copy-Item "deskx.exe" -Destination "artifacts/" -Force
+          } elseif (Test-Path "deskx") {
+            Copy-Item "deskx" -Destination "artifacts/" -Force
           }
-          Get-ChildItem -Recurse -File |
-            Where-Object { $_.Name -like 'deskx*' -or $_.Extension -in '.exe', '.dll' } |
+          
+          # 复制其他 deskx 相关文件（排除 artifacts 目录）
+          Get-ChildItem -Path . -Recurse -File -Exclude "*.zip","*.tar.gz" |
+            Where-Object { $_.DirectoryName -notlike "*\artifacts*" -and ($_.Name -like 'deskx*' -or $_.Extension -in '.exe', '.dll') } |
             ForEach-Object {
-              Copy-Item $_.FullName -Destination "artifacts/" -Force
+              try {
+                Copy-Item $_.FullName -Destination "artifacts/" -Force -ErrorAction SilentlyContinue
+              } catch { }
             }
+          
+          # 压缩打包
+          if (Test-Path "artifacts/deskx.exe") {
+            Compress-Archive -Path "artifacts/deskx.exe" -DestinationPath "artifacts/deskx_win.zip" -Force
+          } elseif (Test-Path "artifacts/deskx") {
+            Compress-Archive -Path "artifacts/deskx" -DestinationPath "artifacts/deskx_win.zip" -Force
+          }
+          
+          # 显示产物
+          Get-ChildItem artifacts/
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
