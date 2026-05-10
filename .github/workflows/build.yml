@@ -62,24 +62,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build
-        shell: cmd
-        run: |
-          if exist Makefile (
+      - name: Set up MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            base-devel
             make
-          ) else (
-            echo "No Makefile found, using default build"
-            dir
-          )
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-SDL2
+            mingw-w64-x86_64-lz4
+
+      - name: Build
+        shell: msys2 {0}
+        run: |
+          make
 
       - name: Prepare artifact
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
-          if (Test-Path "deskx.exe") {
-            Compress-Archive -Path "deskx.exe" -DestinationPath "artifacts/deskx_win.zip" -Force
+          if (Test-Path "deskx") {
+            Compress-Archive -Path "deskx" -DestinationPath "artifacts/deskx_win.zip" -Force
           }
-          Get-ChildItem -Recurse -File | Where-Object { $_.Extension -in '.exe', '.dll' } | ForEach-Object {
+          Get-ChildItem -Recurse -File | Where-Object { $_.Extension -in '.exe', '.dll' -or $_.Name -eq 'deskx' } | ForEach-Object {
             $name = $_.Name
             if ($name -like "deskx*") {
               Copy-Item $_.FullName -Destination "artifacts/" -Force
