@@ -331,8 +331,7 @@ uninstall(const char *service_name) {
 	return true;
 }
 
-}
-}
+}  // namespace service
 
 #elif OS == WIN
 

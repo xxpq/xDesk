@@ -3,10 +3,10 @@
     {
       "id": "fef1ae88",
       "created_at": "2026-05-10T01:29:38.846856100Z",
-      "updated_at": "2026-05-10T01:58:53.259693800Z",
+      "updated_at": "2026-05-10T02:02:43.547489200Z",
       "model": "x-code",
       "summary": "增强github的action，增加windows和macos平台的并发编译并上传编译成果物到release中，用后缀_win、_mac_arm、_mac...",
-      "message_count": 22
+      "message_count": 42
     }
   ]
 }
