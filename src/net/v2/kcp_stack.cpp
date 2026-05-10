@@ -14,9 +14,9 @@ public:
     }
     ~WSAInitKCP() { WSACleanup(); }
 } g_wsa_kcp_init;
-#define CLOSE_FD closesocket
+#define CLOSE_FD ::closesocket
 #else
-#define CLOSE_FD close
+#define CLOSE_FD ::close
 #endif
 
 namespace deskx {

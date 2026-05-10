@@ -13,11 +13,11 @@ public:
     }
     ~WSAInitTCP() { WSACleanup(); }
 } g_wsa_tcp_init;
-#define CLOSE_FD closesocket
+#define CLOSE_FD ::closesocket
 #else
 #include <netinet/tcp.h>
 #include <sys/time.h>
-#define CLOSE_FD close
+#define CLOSE_FD ::close
 #endif
 
 namespace deskx {
