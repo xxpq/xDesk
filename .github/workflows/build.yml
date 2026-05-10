@@ -107,6 +107,78 @@ jobs:
           # 显示产物
           Get-ChildItem artifacts/
 
+      - name: Collect DLL dependencies
+        shell: msys2 {0}
+        id: collect_dlls
+        run: |
+          # 创建 DLL 收集目录
+          mkdir -p dlls
+
+          # 获取可执行文件的 DLL 依赖列表
+          if [ -f "deskx.exe" ]; then
+            # 使用 ldd 列出 DLL 依赖，过滤出 MSYS2/MinGW 的 DLL
+            ldd deskx.exe 2>/dev/null | grep -E "(msys|mingw|cyg)" | awk '{print $3}' | while read dll; do
+              if [ -f "$dll" ]; then
+                cp "$dll" dlls/ 2>/dev/null
+                echo "Copied: $dll"
+              fi
+            done
+          fi
+
+          # 也检查 deskx (无扩展名)
+          if [ -f "deskx" ]; then
+            ldd deskx 2>/dev/null | grep -E "(msys|mingw|cyg)" | awk '{print $3}' | while read dll; do
+              if [ -f "$dll" ] && [ ! -f "dlls/$(basename $dll)" ]; then
+                cp "$dll" dlls/ 2>/dev/null
+                echo "Copied: $dll"
+              fi
+            done
+          fi
+
+          # 列出收集到的 DLL
+          echo "=== Collected DLLs ==="
+          ls -la dlls/ || echo "No DLLs collected"
+
+      - name: Prepare artifacts (with DLLs)
+        shell: pwsh
+        run: |
+          # 创建 artifacts 目录
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+
+          # 复制主程序文件
+          if (Test-Path "deskx.exe") {
+            Copy-Item "deskx.exe" -Destination "artifacts/" -Force
+          } elseif (Test-Path "deskx") {
+            Copy-Item "deskx" -Destination "artifacts/" -Force
+          }
+
+          # 复制收集到的 DLL 文件
+          if (Test-Path "dlls") {
+            Get-ChildItem "dlls" -File -ErrorAction SilentlyContinue | ForEach-Object {
+              Copy-Item $_.FullName -Destination "artifacts/" -Force
+              Write-Host "Added DLL: $($_.Name)"
+            }
+          }
+
+          # 复制其他 deskx 相关文件（排除 artifacts 目录）
+          Get-ChildItem -Path . -Recurse -File -Exclude "*.zip","*.tar.gz" |
+            Where-Object { $_.DirectoryName -notlike "*\artifacts*" -and ($_.Name -like 'deskx*' -or $_.Extension -in '.exe', '.dll') } |
+            ForEach-Object {
+              try {
+                Copy-Item $_.FullName -Destination "artifacts/" -Force -ErrorAction SilentlyContinue
+              } catch { }
+            }
+
+          # 压缩打包（包含所有 DLL）
+          $archivePath = if (Test-Path "artifacts/deskx.exe") { "artifacts/deskx.exe" } elseif (Test-Path "artifacts/deskx") { "artifacts/deskx" } else { $null }
+          if ($archivePath) {
+            Compress-Archive -Path "artifacts\*" -DestinationPath "artifacts/deskx_win.zip" -Force
+          }
+
+          # 显示产物
+          Write-Host "=== Artifacts ==="
+          Get-ChildItem artifacts/
+
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
