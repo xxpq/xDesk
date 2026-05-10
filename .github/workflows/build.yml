@@ -27,7 +27,7 @@ jobs:
       - name: Install Linux dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq libx11-dev libxtst-dev libxext-dev libportal-dev libpipewire-0.3-dev libsdl2-dev pkg-config
+          sudo apt-get install -y -qq libx11-dev libxtst-dev libxext-dev libportal-dev libpipewire-0.3-dev libsdl2-dev liblz4-dev pkg-config
 
       - name: Build
         run: make
@@ -105,7 +105,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install pkg-config sdl2
+          brew install pkg-config sdl2 lz4
 
       - name: Build
         run: make
@@ -136,7 +136,7 @@ jobs:
 
       - name: Set up for x86_64
         run: |
-          brew install pkg-config sdl2
+          brew install pkg-config sdl2 lz4
           echo "Building for x86_64 architecture"
 
       - name: Build for x86
