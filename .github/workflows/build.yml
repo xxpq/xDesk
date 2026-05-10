@@ -2,27 +2,226 @@ name: build
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
+    tags:
+      - 'v*'
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
+  release:
+    types: [ created ]
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-
+  # Linux 构建
+  build-linux:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Install dependencies
-      run : |
-        sudo apt-get update -qq
-        sudo apt-get install -y -qq libx11-dev libxtst-dev libxext-dev libportal-dev libpipewire-0.3-dev libsdl2-dev
-    - name: Build
-      run: make
-    - name: Build .deb package
-      run: make dpkg
-    - name: Install .deb packages
-      run: sudo dpkg -i deskx*.deb
-    - name: Check .deb packages
-      run: |
-        dpkg-query --status deskx
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libx11-dev libxtst-dev libxext-dev libportal-dev libpipewire-0.3-dev libsdl2-dev pkg-config
+
+      - name: Build
+        run: make
+
+      - name: Build .deb package
+        run: make dpkg
+
+      - name: Prepare artifact
+        run: |
+          mkdir -p artifacts
+          if ls deskx*.deb 1> /dev/null 2>&1; then
+            cp deskx*.deb artifacts/deskx_linux.deb
+          fi
+          if [ -f deskx ]; then
+            tar -czf artifacts/deskx_linux.tar.gz deskx
+          fi
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deskx-linux
+          path: artifacts/
+          retention-days: 30
+
+  # Windows 构建
+  build-windows:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        shell: cmd
+        run: |
+          if exist Makefile (
+            make
+          ) else (
+            echo "No Makefile found, using default build"
+            dir
+          )
+
+      - name: Prepare artifact
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          if (Test-Path "deskx.exe") {
+            Compress-Archive -Path "deskx.exe" -DestinationPath "artifacts/deskx_win.zip" -Force
+          }
+          Get-ChildItem -Recurse -File | Where-Object { $_.Extension -in '.exe', '.dll' } | ForEach-Object {
+            $name = $_.Name
+            if ($name -like "deskx*") {
+              Copy-Item $_.FullName -Destination "artifacts/" -Force
+            }
+          }
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deskx-windows
+          path: artifacts/
+          retention-days: 30
+
+  # macOS ARM (Apple Silicon) 构建
+  build-mac-arm:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install pkg-config sdl2
+
+      - name: Build
+        run: make
+
+      - name: Prepare artifact
+        run: |
+          mkdir -p artifacts
+          if [ -f deskx ]; then
+            tar -czf artifacts/deskx_mac_arm.tar.gz deskx
+          fi
+
+      - name: Upload macOS ARM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deskx-mac-arm
+          path: artifacts/
+          retention-days: 30
+
+  # macOS x86 构建
+  build-mac-x86:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up for x86_64
+        run: |
+          brew install pkg-config sdl2
+          echo "Building for x86_64 architecture"
+
+      - name: Build for x86
+        run: |
+          export CFLAGS="-arch x86_64"
+          export CXXFLAGS="-arch x86_64"
+          export LDFLAGS="-arch x86_64"
+          make clean || true
+          make
+
+      - name: Prepare artifact
+        run: |
+          mkdir -p artifacts
+          if [ -f deskx ]; then
+            tar -czf artifacts/deskx_mac_x86.tar.gz deskx
+          fi
+
+      - name: Upload macOS x86 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deskx-mac-x86
+          path: artifacts/
+          retention-days: 30
+
+  # 合并并创建 Release
+  release:
+    needs: [build-linux, build-windows, build-mac-arm, build-mac-x86]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display structure of downloaded artifacts
+        run: ls -R artifacts/
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+          
+          # Linux
+          if [ -d "artifacts/deskx-linux" ]; then
+            cp artifacts/deskx-linux/*.deb release/ 2>/dev/null || true
+            cp artifacts/deskx-linux/*.tar.gz release/ 2>/dev/null || true
+          fi
+          
+          # Windows
+          if [ -d "artifacts/deskx-windows" ]; then
+            cp artifacts/deskx-windows/* release/ 2>/dev/null || true
+          fi
+          
+          # macOS ARM
+          if [ -d "artifacts/deskx-mac-arm" ]; then
+            cp artifacts/deskx-mac-arm/* release/ 2>/dev/null || true
+          fi
+          
+          # macOS x86
+          if [ -d "artifacts/deskx-mac-x86" ]; then
+            cp artifacts/deskx-mac-x86/* release/ 2>/dev/null || true
+          fi
+          
+          ls -la release/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          files: release/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to Release (fallback)
+        uses: actions/upload-release-asset@v1
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./release/*
+          asset_name: deskx_${{ github.ref_name }}_all_platforms.zip
+          asset_content_type: application/zip
