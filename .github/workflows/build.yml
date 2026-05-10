@@ -48,9 +48,9 @@ jobs:
             src/*.o
             src/**/*.o
             deskx
-          key: ${{ env.CACHE_PREFIX }}-linux
+          key: ${{ runner.os }}-deskx-${{ hashFiles('**/Makefile', '**/*.cpp', '**/*.h') }}-linux
           restore-keys: |
-            ${{ env.CACHE_PREFIX }}-linux-
+            ${{ runner.os }}-deskx-${{ hashFiles('**/Makefile', '**/*.cpp', '**/*.h') }}-linux-
 
       - name: Build
         if: steps.cache-build.outputs.cache-hit != 'true'
@@ -107,9 +107,9 @@ jobs:
             src/**/*.obj
             src/**/*.o
             deskx
-          key: ${{ env.CACHE_PREFIX }}-windows
+          key: ${{ runner.os }}-deskx-${{ hashFiles('**/Makefile', '**/*.cpp', '**/*.h') }}-windows
           restore-keys: |
-            ${{ env.CACHE_PREFIX }}-windows-
+            ${{ runner.os }}-deskx-${{ hashFiles('**/Makefile', '**/*.cpp', '**/*.h') }}-windows-
 
       - name: Build
         shell: msys2 {0}
@@ -170,9 +170,9 @@ jobs:
             src/*.o
             src/**/*.o
             deskx
-          key: ${{ env.CACHE_PREFIX }}-mac-arm
+          key: ${{ runner.os }}-deskx-${{ hashFiles('**/Makefile', '**/*.cpp', '**/*.h') }}-mac-arm
           restore-keys: |
-            ${{ env.CACHE_PREFIX }}-mac-arm-
+            ${{ runner.os }}-deskx-${{ hashFiles('**/Makefile', '**/*.cpp', '**/*.h') }}-mac-arm-
 
       - name: Build
         if: steps.cache-build-mac-arm.outputs.cache-hit != 'true'
@@ -225,9 +225,9 @@ jobs:
             src/*.o
             src/**/*.o
             deskx
-          key: ${{ env.CACHE_PREFIX }}-mac-x86
+          key: ${{ runner.os }}-deskx-${{ hashFiles('**/Makefile', '**/*.cpp', '**/*.h') }}-mac-x86
           restore-keys: |
-            ${{ env.CACHE_PREFIX }}-mac-x86-
+            ${{ runner.os }}-deskx-${{ hashFiles('**/Makefile', '**/*.cpp', '**/*.h') }}-mac-x86-
 
       - name: Build for x86
         if: steps.cache-build-mac-x86.outputs.cache-hit != 'true'
