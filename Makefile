@@ -22,9 +22,12 @@ else
 	SDL2_LIBS   = $(shell pkg-config --libs sdl2 2>/dev/null)
 	DISPLAY = ./src/display/d3d11.cpp
 	LIBS 	= -ld3d11 -lws2_32
+	SDL2_CFLAGS := $(filter-out -Dmain=SDL_main,$(SDL2_CFLAGS))
 	SDL2_LIBS := $(filter-out -lSDL2main,$(SDL2_LIBS))
+	SDL2_LIBS := $(filter-out -lmingw32,$(SDL2_LIBS))
 	SDL2_LIBS := $(filter-out -mwindows,$(SDL2_LIBS))
 	SDL2_LIBS := -lSDL2 $(SDL2_LIBS)
+	FLAGS += -Umain
 endif
 
 NET_V2 = ./src/net/v2/ikcp.c ./src/net/v2/crc32.cpp ./src/net/v2/tcp_stack.cpp ./src/net/v2/kcp_stack.cpp ./src/net/v2/dispatcher.cpp ./src/net/v2/manager.cpp
