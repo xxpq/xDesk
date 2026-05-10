@@ -14,7 +14,7 @@ else
 endif
 
 NET_V2 = ./src/net/v2/ikcp.c ./src/net/v2/crc32.cpp ./src/net/v2/tcp_stack.cpp ./src/net/v2/kcp_stack.cpp ./src/net/v2/dispatcher.cpp ./src/net/v2/manager.cpp
-SRC = ./src/main.cpp ./src/args.cpp ./src/client.cpp ./src/server.cpp ./src/net.cpp ./src/net_adapter_v2.cpp ./src/service.cpp ./src/codec/*.cpp ./src/client/*.cpp $(DISPLAY) $(NET_V2) $(FLAGS) $(LIBS) -o deskx
+SRC = ./src/main.cpp ./src/args.cpp ./src/client.cpp ./src/server.cpp ./src/net.cpp ./src/net_adapter_v2.cpp ./src/service.cpp ./src/codec.cpp ./src/display.cpp ./src/codec/*.cpp ./src/client/*.cpp $(DISPLAY) $(NET_V2) $(FLAGS) $(LIBS) -o deskx
 
 all:
 	g++ $(SRC)
