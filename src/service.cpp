@@ -144,11 +144,11 @@ uninstall(const char *service_name) {
 	char cmd[512];
 
 	::snprintf(cmd, sizeof(cmd), "systemctl stop %s", service_name);
-	::system(cmd);
+	(void)::system(cmd);
 	INFO(NOTE"Service stopped");
 
 	::snprintf(cmd, sizeof(cmd), "systemctl disable %s", service_name);
-	::system(cmd);
+	(void)::system(cmd);
 	INFO(NOTE"Service disabled");
 
 	char path[PATH_MAX];
