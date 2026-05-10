@@ -2,66 +2,42 @@ name: build
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
     tags:
       - 'v*'
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
   release:
-    types: [ created ]
+    types: [created]
 
 env:
   CARGO_TERM_COLOR: always
-  # 缓存键前缀
 
 jobs:
-  # Linux 构建
   build-linux:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Cache apt packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            /var/cache/apt/archives
-          key: ${{ runner.os }}-apt-${{ hashFiles('.github/workflows/build.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-apt-
-
       - name: Install Linux dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq libx11-dev libxtst-dev libxext-dev libportal-dev libpipewire-0.3-dev libsdl2-dev liblz4-dev pkg-config
-
-      - name: Cache build artifacts
-        uses: actions/cache@v4
-        id: cache-build
-        with:
-          path: |
-            src/*.o
-            src/**/*.o
-            deskx
-          key: ${{ runner.os }}-deskx-${{ hashFiles('**/Makefile', '**/*.cpp', '**/*.h') }}-linux
-          restore-keys: |
-            ${{ runner.os }}-deskx-${{ hashFiles('**/Makefile', '**/*.cpp', '**/*.h') }}-linux-
+          sudo apt-get install -y -qq \
+            libx11-dev libxtst-dev libxext-dev \
+            libportal-dev libpipewire-0.3-dev \
+            libsdl2-dev liblz4-dev pkg-config
 
       - name: Build
-        if: steps.cache-build.outputs.cache-hit != 'true'
         run: make
 
-      - name: Build .deb package
+      - name: Build deb package
         run: make dpkg
 
-      - name: Prepare artifact
+      - name: Prepare artifacts
         run: |
           mkdir -p artifacts
-          if ls deskx*.deb 1> /dev/null 2>&1; then
+          if ls deskx*.deb 1>/dev/null 2>&1; then
             cp deskx*.deb artifacts/deskx_linux.deb
           fi
           if [ -f deskx ]; then
@@ -75,12 +51,8 @@ jobs:
           path: artifacts/
           retention-days: 30
 
-  # Windows 构建
   build-windows:
     runs-on: windows-latest
-    strategy:
-      fail-fast: false
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -98,36 +70,23 @@ jobs:
             mingw-w64-x86_64-SDL2
             mingw-w64-x86_64-lz4
 
-      - name: Cache build artifacts
-        uses: actions/cache@v4
-        id: cache-build-win
-        with:
-          path: |
-            src/**/*.obj
-            src/**/*.o
-            deskx
-          key: ${{ runner.os }}-deskx-${{ hashFiles('**/Makefile', '**/*.cpp', '**/*.h') }}-windows
-          restore-keys: |
-            ${{ runner.os }}-deskx-${{ hashFiles('**/Makefile', '**/*.cpp', '**/*.h') }}-windows-
-
-      - name: Build
+      - name: Build (MSYS2)
         shell: msys2 {0}
         run: |
           make
 
-      - name: Prepare artifact
+      - name: Prepare artifacts
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
           if (Test-Path "deskx") {
             Compress-Archive -Path "deskx" -DestinationPath "artifacts/deskx_win.zip" -Force
           }
-          Get-ChildItem -Recurse -File | Where-Object { $_.Extension -in '.exe', '.dll' -or $_.Name -eq 'deskx' } | ForEach-Object {
-            $name = $_.Name
-            if ($name -like "deskx*") {
+          Get-ChildItem -Recurse -File |
+            Where-Object { $_.Name -like 'deskx*' -or $_.Extension -in '.exe', '.dll' } |
+            ForEach-Object {
               Copy-Item $_.FullName -Destination "artifacts/" -Force
             }
-          }
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -136,167 +95,52 @@ jobs:
           path: artifacts/
           retention-days: 30
 
-  # macOS ARM (Apple Silicon) 构建
-  build-mac-arm:
+  build-macos:
     runs-on: macos-latest
-    strategy:
-      fail-fast: false
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Cache Homebrew packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/Library/Caches/Homebrew
-            /usr/local/Cellar/pkg-config
-            /usr/local/Cellar/sdl2
-          key: ${{ runner.os }}-brew-${{ hashFiles('.github/workflows/build.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-brew-
-
-      - name: Install dependencies
+      - name: Install macOS dependencies
         run: |
           brew install pkg-config sdl2 lz4
-
-      - name: Cache build artifacts
-        uses: actions/cache@v4
-        id: cache-build-mac-arm
-        with:
-          path: |
-            src/*.o
-            src/**/*.o
-            deskx
-          key: ${{ runner.os }}-deskx-${{ hashFiles('**/Makefile', '**/*.cpp', '**/*.h') }}-mac-arm
-          restore-keys: |
-            ${{ runner.os }}-deskx-${{ hashFiles('**/Makefile', '**/*.cpp', '**/*.h') }}-mac-arm-
 
       - name: Build
-        if: steps.cache-build-mac-arm.outputs.cache-hit != 'true'
         run: make
 
-      - name: Prepare artifact
+      - name: Prepare artifacts
         run: |
           mkdir -p artifacts
           if [ -f deskx ]; then
-            tar -czf artifacts/deskx_mac_arm.tar.gz deskx
+            tar -czf artifacts/deskx_macos.tar.gz deskx
           fi
 
-      - name: Upload macOS ARM artifact
+      - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
-          name: deskx-mac-arm
+          name: deskx-macos
           path: artifacts/
           retention-days: 30
 
-  # macOS x86 构建
-  build-mac-x86:
-    runs-on: macos-latest
-    strategy:
-      fail-fast: false
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Cache Homebrew packages (x86)
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/Library/Caches/Homebrew
-            /usr/local/Cellar/pkg-config
-            /usr/local/Cellar/sdl2
-          key: ${{ runner.os }}-brew-x86-${{ hashFiles('.github/workflows/build.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-brew-x86-
-
-      - name: Install dependencies
-        run: |
-          brew install pkg-config sdl2 lz4
-
-      - name: Cache build artifacts (x86)
-        uses: actions/cache@v4
-        id: cache-build-mac-x86
-        with:
-          path: |
-            src/*.o
-            src/**/*.o
-            deskx
-          key: ${{ runner.os }}-deskx-${{ hashFiles('**/Makefile', '**/*.cpp', '**/*.h') }}-mac-x86
-          restore-keys: |
-            ${{ runner.os }}-deskx-${{ hashFiles('**/Makefile', '**/*.cpp', '**/*.h') }}-mac-x86-
-
-      - name: Build for x86
-        if: steps.cache-build-mac-x86.outputs.cache-hit != 'true'
-        run: |
-          export CFLAGS="-arch x86_64"
-          export CXXFLAGS="-arch x86_64"
-          export LDFLAGS="-arch x86_64"
-          make clean || true
-          make
-
-      - name: Prepare artifact
-        run: |
-          mkdir -p artifacts
-          if [ -f deskx ]; then
-            tar -czf artifacts/deskx_mac_x86.tar.gz deskx
-          fi
-
-      - name: Upload macOS x86 artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: deskx-mac-x86
-          path: artifacts/
-          retention-days: 30
-
-  # 合并并创建 Release
   release:
-    needs: [build-linux, build-windows, build-mac-arm, build-mac-x86]
+    needs: [build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: Display structure of downloaded artifacts
-        run: ls -R artifacts/
-
-      - name: Prepare release assets
+      - name: Collect release files
         run: |
           mkdir -p release
-          
-          # Linux
-          if [ -d "artifacts/deskx-linux" ]; then
-            cp artifacts/deskx-linux/*.deb release/ 2>/dev/null || true
-            cp artifacts/deskx-linux/*.tar.gz release/ 2>/dev/null || true
-          fi
-          
-          # Windows
-          if [ -d "artifacts/deskx-windows" ]; then
-            cp artifacts/deskx-windows/* release/ 2>/dev/null || true
-          fi
-          
-          # macOS ARM
-          if [ -d "artifacts/deskx-mac-arm" ]; then
-            cp artifacts/deskx-mac-arm/* release/ 2>/dev/null || true
-          fi
-          
-          # macOS x86
-          if [ -d "artifacts/deskx-mac-x86" ]; then
-            cp artifacts/deskx-mac-x86/* release/ 2>/dev/null || true
-          fi
-          
+          cp -r artifacts/deskx-linux/* release/ 2>/dev/null || true
+          cp -r artifacts/deskx-windows/* release/ 2>/dev/null || true
+          cp -r artifacts/deskx-macos/* release/ 2>/dev/null || true
           ls -la release/
 
-      - name: Create Release
+      - name: Create release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/v')
         with:
@@ -304,14 +148,3 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload to Release (fallback)
-        uses: actions/upload-release-asset@v1
-        if: startsWith(github.ref, 'refs/tags/v')
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./release/*
-          asset_name: deskx_${{ github.ref_name }}_all_platforms.zip
-          asset_content_type: application/zip
