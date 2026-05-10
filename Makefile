@@ -1,7 +1,7 @@
 VERSION = 2.1.0 beta
 SDL2_CFLAGS =
 SDL2_LIBS   =
-FLAGS = -I./src -Ofast -lpthread -llz4 -fno-exceptions -std=c++17 -DVERSION="\"$(VERSION)\""
+FLAGS = -I./src -O3 -ffast-math -lpthread -llz4 -fno-exceptions -std=c++17 -DVERSION="\"$(VERSION)\""
 
 ifeq ($(shell uname -s), Linux)
 	SDL2_CFLAGS = $(shell pkg-config --cflags sdl2 2>/dev/null)

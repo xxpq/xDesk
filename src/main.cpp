@@ -32,14 +32,14 @@ main(int argc, char *argv[]) {
 	switch (args.mode()) {
 	case args::type::INSTALL: {
 		const char *self = argv[0];
-		const char *name = args.service_name().c_str();
-		const char *port = args["port"].c_str();
+		std::string name = args.service_name();
+		std::string port = args["port"];
 		if (!args["port"].size()) {
 			INFO(ERR"--port is required for installation");
 			INFO(usage(3));
 			return 1;
 		}
-		return service::install(self, name, port) ? 0 : 1;
+		return service::install(self, name.c_str(), port.c_str()) ? 0 : 1;
 	}
 
 	case args::type::UNINSTALL: {
