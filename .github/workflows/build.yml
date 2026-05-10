@@ -13,7 +13,6 @@ on:
 env:
   CARGO_TERM_COLOR: always
   # 缓存键前缀
-  CACHE_PREFIX: ${{ runner.os }}-deskx-${{ hashFiles('**/Makefile', '**/*.cpp', '**/*.h') }}
 
 jobs:
   # Linux 构建
